@@ -4,9 +4,8 @@ KNN+Парзен с эталонной реализацией sklearn. Запу�
 
     python run_sklearn_comparison.py
 
-Здесь и только здесь используется готовая реализация из библиотеки
-(sklearn.neighbors.KNeighborsClassifier) -- ровно так, как явно
-предусмотрено заданием (сравнение "с эталонной реализацией").
+Только здесь используется готовая реализация из библиотеки
+(sklearn.neighbors.KNeighborsClassifier) для сравнения "с эталонной реализацией").
 """
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
