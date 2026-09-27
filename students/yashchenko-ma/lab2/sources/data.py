@@ -63,7 +63,7 @@ def load_and_split(test_size=0.2, random_state=RANDOM_STATE):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
-    scaler = StandardScaler().fit(X_train) // StandardScaler - метрические методы (KNN, Парзен) считают евклидово расстояние $\rho(x,x_i)=\sqrt{\sum_j (x^j-x_i^j)^2}$
+    scaler = StandardScaler().fit(X_train) # StandardScaler - метрические методы (KNN, Парзен) считают евклидово расстояние $\rho(x,x_i)=\sqrt{\sum_j (x^j-x_i^j)^2}$
     X_train = scaler.transform(X_train)
     X_test = scaler.transform(X_test)
     return X_train, X_test, y_train, y_test
