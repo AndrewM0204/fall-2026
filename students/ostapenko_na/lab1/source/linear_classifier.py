@@ -533,14 +533,14 @@ def main():
 
     print(f"\nГрафики сохранены в: {IMAGE_DIR}")
     results.to_csv(
-        Path(__file__).resolve().parent / "metrics.csv",
-        index=False
-    )
+    RESULTS_DIR / "metrics.csv",
+    index=False
+)
 
     starts.to_csv(
-        Path(__file__).resolve().parent / "multistart_results.csv",
+        RESULTS_DIR / "multistart_results.csv",
         index=False
-)
+    )
 
 if __name__ == "__main__":
     main()
