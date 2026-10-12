@@ -199,14 +199,14 @@ class FastestGradientDescentClassifier(BaseLinearClassifier):
 
         for epoch in range(self.epochs):
             for idx in rng.permutation(n):
-                grad_w, grad_w0, M = _compute_gradient(X, y, w, w0, idx, self.reg_tau)
+                grad_w, grad_w0, M = _compute_gradient(X, y, w, w0, idx, 0)
 
                 h_star = 1.0 / (np.dot(X[idx], X[idx]) + 1)
 
                 w -= h_star * grad_w
                 w0 -= h_star * grad_w0
 
-                loss = _quadratic_loss(M) + 0.5 * self.reg_tau * np.sum(w ** 2)
+                loss = _quadratic_loss(M)
                 estimator.update(loss)
 
         self.w_ = w
