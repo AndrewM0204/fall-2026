@@ -1,5 +1,4 @@
 import numpy as np
-from scipy.special import comb
 from sklearn.metrics import pairwise_distances
 
 
@@ -58,97 +57,95 @@ class ParzenKNN:
         
         return np.sum(predictions != y) / len(y)
 
-def compute_ccv(X_total, y_total, Omega_X, Omega_y, k_control, R):
+def ccv_weights(L, l, k):
     """
-    Вычисляет CCV (Complete Cross-Validation) для множества эталонов Omega.
-    
-    CCV(Ω) = 1/L * sum_{i=1}^L sum_{m=1}^k [y_i != y_i^(m|Ω)] * R(m)
-    
-    где:
-    - L = len(X_total) - полный размер выборки
-    - Ω = (Omega_X, Omega_y) - множество эталонов
-    - y_i^(m|Ω) - класс m-го ближайшего соседа объекта x_i среди Ω
-    - k = k_control - длина контроля
-    - R(m) = C^{L-1-m}_{l-1} / C^{L-1}_{l} - веса (l = L - k)
-    """
-    L = len(X_total)
-    if len(Omega_X) == 0:
-        return float('inf')
-    
-    # Матрица расстояний от всех объектов X_total до эталонов Omega_X
-    dists = pairwise_distances(X_total, Omega_X)
-    
-    # Находим k_control ближайших соседей в Omega для каждого объекта из X_total
-    # Используем argpartition для эффективности (быстрее полной сортировки)
-    if len(Omega_X) <= k_control:
-        neighbor_indices = np.argsort(dists, axis=1)[:, :len(Omega_X)]
-        actual_k = len(Omega_X)
-    else:
-        neighbor_indices = np.argpartition(dists, k_control, axis=1)[:, :k_control]
-        # Сортируем только k ближайших для правильного порядка
-        for i in range(L):
-            neighbor_indices[i] = neighbor_indices[i][np.argsort(dists[i, neighbor_indices[i]])]
-        actual_k = k_control
-    
-    # Вычисляем CCV
-    ccv_sum = 0.0
-    for m in range(actual_k):
-        # m-й сосед (0-indexed, т.е. (m+1)-й в 1-indexed)
-        # Класс m-го соседа для каждого объекта
-        neighbor_classes = Omega_y[neighbor_indices[:, m]]
-        # Ошибки: y_i != neighbor_classes
-        errors = (y_total != neighbor_classes).astype(float)
-        ccv_sum += np.sum(errors) * R[m]
-    
-    return ccv_sum / L
+    Веса R(m) для CCV.
 
-def prototype_selection_greedy_removal(X, y, k_control, tolerance=1e-5):
+    """
+    R = np.empty(k, dtype=float)
+    R[0] = l / (L - 1)
+
+    for m in range(1, k):
+        R[m] = R[m - 1] * (k - m) / (L - 1 - m)
+
+    return R
+
+
+def compute_ccv(D, y, omega_idx, k_control, R):
+    """
+    Вычисляет CCV(Ω) для множества эталонов Ω, заданного индексами omega_idx.
+
+    D — предвычисленная матрица расстояний между всеми объектами выборки.
+    """
+    n_proto = len(omega_idx)
+    k = min(k_control, n_proto - 1)
+
+    if k <= 0:
+        return 0.0
+
+    dist = D[:, omega_idx].copy()
+
+    # Исключаем объект как собственного соседа.
+    dist[omega_idx, np.arange(n_proto)] = np.inf
+
+    # k ближайших соседей среди эталонов
+    neighbors = np.argsort(dist, axis=1)[:, :k]
+
+    # Ошибки: класс объекта != класс его m-го соседа из Ω
+    errors = y[:, None] != y[omega_idx][neighbors]
+
+    return float(np.sum(errors * R[:k]) / len(y))
+
+
+def prototype_selection_greedy_removal(X, y, k_control=None, tolerance=1e-5):
     """
     Жадное удаление не-эталонов по критерию CCV.
     """
-    X = np.array(X)
-    y = np.array(y)
+    X = np.asarray(X)
+    y = np.asarray(y)
     L = len(X)
-        
+
+    if k_control is None:
+        k_control = max(1, int(0.2 * L))
+
     l = L - k_control
-    
-    R = np.zeros(k_control)
-    den = comb(L - 1, l, exact=True)
-    for m in range(1, k_control + 1):
-        num = comb(L - 1 - m, l - 1, exact=True)
-        R[m - 1] = num / den
-    
-    Omega_X = X.copy()
-    Omega_y = y.copy()
-    
-    current_ccv = compute_ccv(X, y, Omega_X, Omega_y, k_control, R)
-    print(f"\nInitial size: {len(Omega_X)}, CCV: {current_ccv:.6f}")
-    
-    improved = True
+    R = ccv_weights(L, l, k_control)
+
+    # Предвычисляем расстояния
+    D = pairwise_distances(X, X)
+
+    omega_idx = np.arange(L)
+    current_ccv = compute_ccv(D, y, omega_idx, k_control, R)
+
+    print(f"Initial size: {len(omega_idx)}, CCV: {current_ccv:.6f}")
+
     iteration = 0
-    
-    while improved and len(Omega_X) > 10:
-        improved = False
-        best_ccv = current_ccv
-        best_idx_to_remove = -1
-        
-        for i in range(len(Omega_X)):
-            temp_X = np.delete(Omega_X, i, axis=0)
-            temp_y = np.delete(Omega_y, i)
-            temp_ccv = compute_ccv(X, y, temp_X, temp_y, k_control, R)
-            
-            if temp_ccv <= best_ccv + tolerance:
-                best_ccv = temp_ccv
-                best_idx_to_remove = i
-        
-        if best_idx_to_remove != -1:
-            Omega_X = np.delete(Omega_X, best_idx_to_remove, axis=0)
-            Omega_y = np.delete(Omega_y, best_idx_to_remove)
-            current_ccv = best_ccv
-            improved = True
-            iteration += 1
-            if iteration % 10 == 0:
-                print(f"Iter {iteration}: newSize={len(Omega_X)}, CCV={current_ccv:.6f}")
-    
-    print(f"Final size: {len(Omega_X)}, CCV: {current_ccv:.6f}")
-    return Omega_X, Omega_y
+
+    # Гарантируем, что у каждого эталона остаётся хотя бы k_control соседей
+    while len(omega_idx) > k_control + 1:
+        ccvs = np.empty(len(omega_idx))
+
+        for j in range(len(omega_idx)):
+            cand_idx = np.delete(omega_idx, j)
+            ccvs[j] = compute_ccv(D, y, cand_idx, k_control, R)
+
+        best_j = int(np.argmin(ccvs))
+
+        # Удаляем, если CCV уменьшается или почти не увеличивается
+        if ccvs[best_j] > current_ccv + tolerance:
+            break
+
+        omega_idx = np.delete(omega_idx, best_j)
+        current_ccv = ccvs[best_j]
+        iteration += 1
+
+        if iteration % 10 == 0:
+            print(
+                f"Iter {iteration}: "
+                f"newSize={len(omega_idx)}, "
+                f"CCV={current_ccv:.6f}"
+            )
+
+    print(f"Final size: {len(omega_idx)}, CCV: {current_ccv:.6f}")
+
+    return X[omega_idx], y[omega_idx]

@@ -81,7 +81,7 @@ def main():
     
     print("\nАлгоритм отбора эталонов")
     k_control = int(0.2 * len(X_train)) 
-    prototypes_X, prototypes_y = prototype_selection_greedy_removal(X_train, y_train, k_control=k_control, tolerance=1e-6)
+    prototypes_X, prototypes_y = prototype_selection_greedy_removal(X_train, y_train, k_control=k_control, tolerance=1e-7)
     print(f"Итоговый размер множества эталонов: {len(prototypes_X)}/{len(X_train)}")
     
     is_prototype = np.zeros(len(X_train), dtype=bool)
