@@ -201,7 +201,7 @@ class FastestGradientDescentClassifier(BaseLinearClassifier):
             for idx in rng.permutation(n):
                 grad_w, grad_w0, M = _compute_gradient(X, y, w, w0, idx, self.reg_tau)
 
-                h_star = 1.0 / (np.dot(X[idx], X[idx]) + 1e-8)
+                h_star = 1.0 / (np.dot(X[idx], X[idx]) + 1)
 
                 w -= h_star * grad_w
                 w0 -= h_star * grad_w0
